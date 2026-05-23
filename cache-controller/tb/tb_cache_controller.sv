@@ -64,16 +64,17 @@ module tb_cache_controller();
     // Task de Leitura da CPU
     task do_read(input logic [7:0] addr);
         begin
-            @(posedge clk);
+            // Garante inicio de uma nova transacao apenas com ready em 0.
+            wait (cpu_ready == 1'b0);
+            @(negedge clk);
             cpu_read  = 1'b1;
             cpu_write = 1'b0;
             cpu_addr  = addr;
             
             // Aguarda o controlador sinalizar que o dado está pronto
             wait (cpu_ready == 1'b1);
-            @(posedge clk); // Espera a borda para sincronizar o fim da operação
-            
-            cpu_read = 1'b0; // Desce o sinal da requisição
+            cpu_read = 1'b0; // Desce a requisicao imediatamente para evitar duplicacao
+            @(posedge clk); // Desce o sinal da requisição
             $display("[%0t] READ  | Addr: 8'h%0h | Data: 32'h%0h | Hit: %b", $time, addr, cpu_rdata, cache_hit);
             #10; // Pausa entre operações
         end
@@ -82,7 +83,9 @@ module tb_cache_controller();
     // Task de Escrita da CPU
     task do_write(input logic [7:0] addr, input logic [31:0] data);
         begin
-            @(posedge clk);
+            // Garante inicio de uma nova transacao apenas com ready em 0.
+            wait (cpu_ready == 1'b0);
+            @(negedge clk);
             cpu_read  = 1'b0;
             cpu_write = 1'b1;
             cpu_addr  = addr;
@@ -90,9 +93,8 @@ module tb_cache_controller();
             
             // Aguarda o controlador sinalizar que a escrita foi concluída
             wait (cpu_ready == 1'b1);
+            cpu_write = 1'b0; // Desce a requisicao imediatamente para evitar duplicacao
             @(posedge clk);
-            
-            cpu_write = 1'b0;
             $display("[%0t] WRITE | Addr: 8'h%0h | Data: 32'h%0h | Hit: %b", $time, addr, data, cache_hit);
             #10;
         end
@@ -188,3 +190,4 @@ module tb_cache_controller();
     end
 
 endmodule
+

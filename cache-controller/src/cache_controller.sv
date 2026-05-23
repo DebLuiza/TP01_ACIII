@@ -19,43 +19,41 @@ module cache_controller (
     input  logic        mem_ready
 );
 
-    localparam int ADDR_WIDTH  = 8;
-    localparam int DATA_WIDTH  = 32;
-
     localparam int NUM_SETS    = 4;
     localparam int NUM_WAYS    = 2;
 
-    localparam int OFFSET_BITS = 2;
-    localparam int INDEX_BITS  = 2;
+    localparam int DATA_WIDTH  = 32;
     localparam int TAG_BITS    = 4;
+    localparam int INDEX_BITS  = 2;
 
-    // Endereço:
+    // Endereco:
     // addr[7:4] = tag
-    // addr[3:2] = índice
+    // addr[3:2] = indice
     // addr[1:0] = offset dentro da palavra
 
     typedef enum logic [2:0] {
         IDLE,
         COMPARE_TAG,
-        WRITE_BACK,
-        ALLOCATE,
+        WRITE_BACK_REQ,
+        WRITE_BACK_WAIT,
+        ALLOCATE_REQ,
+        ALLOCATE_WAIT,
         UPDATE_CACHE,
         RESPOND
     } state_t;
 
     state_t state, next_state;
 
-    logic                  valid [NUM_SETS][NUM_WAYS];
-    logic                  dirty [NUM_SETS][NUM_WAYS];
-    logic [TAG_BITS-1:0]   tags  [NUM_SETS][NUM_WAYS];
-    logic [DATA_WIDTH-1:0] data  [NUM_SETS][NUM_WAYS];
+    logic                valid [NUM_SETS][NUM_WAYS];
+    logic                dirty [NUM_SETS][NUM_WAYS];
+    logic [TAG_BITS-1:0] tags  [NUM_SETS][NUM_WAYS];
+    logic [DATA_WIDTH-1:0] data [NUM_SETS][NUM_WAYS];
 
     // lru[set] indica a via menos recentemente usada.
-    // 0 = Way 0 é vítima preferida
-    // 1 = Way 1 é vítima preferida
+    // 0 = Way 0 e vitima preferida
+    // 1 = Way 1 e vitima preferida
     logic lru [NUM_SETS];
 
-    // Registradores da requisição atual
     logic        actual_hit;
     logic        req_read;
     logic        req_write;
@@ -79,6 +77,7 @@ module cache_controller (
     assign hit_way  = hit_way1 ? 1'b1 : 1'b0;
 
     logic victim_way;
+    logic req_victim_way;
 
     always_comb begin
         if (!valid[req_index][0]) begin
@@ -89,8 +88,6 @@ module cache_controller (
             victim_way = lru[req_index];
         end
     end
-
-    // FSM - lógica combinacional
 
     always_comb begin
         next_state = state;
@@ -104,7 +101,6 @@ module cache_controller (
         mem_wdata = 32'b0;
 
         case (state)
-
             IDLE: begin
                 if (cpu_read || cpu_write) begin
                     next_state = COMPARE_TAG;
@@ -114,26 +110,34 @@ module cache_controller (
             COMPARE_TAG: begin
                 if (hit) begin
                     next_state = RESPOND;
+                end else if (valid[req_index][victim_way] && dirty[req_index][victim_way]) begin
+                    next_state = WRITE_BACK_REQ;
                 end else begin
-                    if (valid[req_index][victim_way] && dirty[req_index][victim_way]) begin
-                        next_state = WRITE_BACK;
-                    end else begin
-                        next_state = ALLOCATE;
-                    end
+                    next_state = ALLOCATE_REQ;
                 end
             end
 
-            WRITE_BACK: begin
+            WRITE_BACK_REQ: begin
                 mem_write = 1'b1;
-                mem_addr  = {tags[req_index][victim_way], req_index, 2'b00};
-                mem_wdata = data[req_index][victim_way];
+                mem_addr  = {tags[req_index][req_victim_way], req_index, 2'b00};
+                mem_wdata = data[req_index][req_victim_way];
 
+                next_state = WRITE_BACK_WAIT;
+            end
+
+            WRITE_BACK_WAIT: begin
                 if (mem_ready) begin
-                    next_state = ALLOCATE;
+                    next_state = ALLOCATE_REQ;
                 end
             end
 
-            ALLOCATE: begin
+            ALLOCATE_REQ: begin
+                mem_read = 1'b1;
+                mem_addr = {req_tag, req_index, 2'b00};
+                next_state = ALLOCATE_WAIT;
+            end
+
+            ALLOCATE_WAIT: begin
                 mem_read = 1'b1;
                 mem_addr = {req_tag, req_index, 2'b00};
 
@@ -141,7 +145,7 @@ module cache_controller (
                     next_state = UPDATE_CACHE;
                 end
             end
-            
+
             UPDATE_CACHE: begin
                 next_state = RESPOND;
             end
@@ -149,35 +153,29 @@ module cache_controller (
             RESPOND: begin
                 cpu_ready = 1'b1;
                 cache_hit = actual_hit;
-
                 next_state = IDLE;
             end
 
             default: begin
                 next_state = IDLE;
             end
-
         endcase
     end
-
-    // FSM - lógica sequencial
 
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
             state <= IDLE;
 
             cpu_rdata <= 32'b0;
-
             req_read  <= 1'b0;
             req_write <= 1'b0;
             req_addr  <= 8'b0;
             req_wdata <= 32'b0;
-
+            req_victim_way <= 1'b0;
             actual_hit <= 1'b0;
 
             for (int i = 0; i < NUM_SETS; i++) begin
                 lru[i] <= 1'b0;
-
                 for (int j = 0; j < NUM_WAYS; j++) begin
                     valid[i][j] <= 1'b0;
                     dirty[i][j] <= 1'b0;
@@ -189,7 +187,6 @@ module cache_controller (
             state <= next_state;
 
             case (state)
-
                 IDLE: begin
                     if (cpu_read || cpu_write) begin
                         req_read  <= cpu_read;
@@ -213,54 +210,42 @@ module cache_controller (
                             cpu_rdata <= req_wdata;
                         end
 
-                        // Se usei Way 0, Way 1 vira menos recente.
-                        // Se usei Way 1, Way 0 vira menos recente.
                         lru[req_index] <= ~hit_way;
+                    end else begin
+                        req_victim_way <= victim_way;
                     end
                 end
 
-                WRITE_BACK: begin
-                    // Sinais de escrita na memória são gerados na lógica combinacional.
+                ALLOCATE_REQ: begin
+                    // Dispara leitura da memoria.
                 end
 
-                ALLOCATE: begin
-                    // A leitura da memória é solicitada no bloco combinacional.
-                    // A atualização da cache ocorre apenas no estado UPDATE_CACHE,
-                    // quando mem_rdata já está estável.
+                ALLOCATE_WAIT: begin
+                    // Aguarda memoria responder.
                 end
 
                 UPDATE_CACHE: begin
-                    valid[req_index][victim_way] <= 1'b1;
-                    tags[req_index][victim_way]  <= req_tag;
+                    valid[req_index][req_victim_way] <= 1'b1;
+                    tags[req_index][req_victim_way]  <= req_tag;
 
                     if (req_read) begin
-                        data[req_index][victim_way]  <= mem_rdata;
-                        dirty[req_index][victim_way] <= 1'b0;
+                        data[req_index][req_victim_way]  <= mem_rdata;
+                        dirty[req_index][req_victim_way] <= 1'b0;
                         cpu_rdata <= mem_rdata;
                     end
 
                     if (req_write) begin
-                        // Write-allocate + write-back:
-                        // o bloco foi buscado, mas o valor escrito pela CPU
-                        // substitui a palavra carregada.
-                        data[req_index][victim_way]  <= req_wdata;
-                        dirty[req_index][victim_way] <= 1'b1;
+                        data[req_index][req_victim_way]  <= req_wdata;
+                        dirty[req_index][req_victim_way] <= 1'b1;
                         cpu_rdata <= req_wdata;
                     end
 
-                    // Atualiza LRU.
-                    // A via usada deixa de ser a menos recentemente usada.
-                    lru[req_index] <= ~victim_way;
-                end
-
-                RESPOND: begin
-                    // cpu_ready e cache_hit são combinacionais neste estado.
+                    lru[req_index] <= ~req_victim_way;
                 end
 
                 default: begin
-                    state <= IDLE;
+                    // NOP
                 end
-
             endcase
         end
     end

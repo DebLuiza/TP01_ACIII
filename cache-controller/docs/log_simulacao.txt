@@ -1,0 +1,59 @@
+======================================
+ Compilando o controlador de cache...
+======================================
+
+======================================
+ Executando a simulação...
+======================================
+VCD info: dumpfile sim/wave.vcd opened for output.
+---------------------------------------------------
+Iniciando Simulacao - Resetando o Sistema...
+
+--- TESTE 1: Miss de Leitura (Alocando na Cache) ---
+[135000] READ  | Addr: 8'h10 | Data: 32'h1004 | Hit: 0
+
+--- TESTE 2: Hit de Leitura ---
+[175000] READ  | Addr: 8'h10 | Data: 32'h1004 | Hit: 1
+
+--- TESTE 3: Hit de Escrita (Write-Back) ---
+[215000] WRITE | Addr: 8'h10 | Data: 32'hdeadbeef | Hit: 1
+
+--- TESTE 4: Leitura para confirmar a Escrita ---
+[255000] READ  | Addr: 8'h10 | Data: 32'hdeadbeef | Hit: 1
+
+--- TESTE 5: Miss de Escrita (Write-Allocate) ---
+[365000] WRITE | Addr: 8'h24 | Data: 32'hcafebabe | Hit: 0
+
+--- TESTE 6: Leitura para confirmar Write-Allocate ---
+[405000] READ  | Addr: 8'h24 | Data: 32'hcafebabe | Hit: 1
+
+--- TESTE 7: Conflito de Indice - Preenchendo Set 2 ---
+[515000] READ  | Addr: 8'h8 | Data: 32'h1002 | Hit: 0
+[625000] READ  | Addr: 8'h18 | Data: 32'h1006 | Hit: 0
+
+--- TESTE 8: Atualizando LRU ---
+[665000] READ  | Addr: 8'h8 | Data: 32'h1002 | Hit: 1
+
+--- TESTE 9: Substituicao LRU no Set 2 ---
+[775000] READ  | Addr: 8'h28 | Data: 32'h100a | Hit: 0
+
+--- TESTE 10: Confirmando substituicao LRU ---
+[815000] READ  | Addr: 8'h8 | Data: 32'h1002 | Hit: 1
+[925000] READ  | Addr: 8'h18 | Data: 32'h1006 | Hit: 0
+
+--- TESTE 11: Write-Back de bloco Dirty ---
+[1035000] WRITE | Addr: 8'hc | Data: 32'h11111111 | Hit: 0
+[1145000] READ  | Addr: 8'h1c | Data: 32'h1007 | Hit: 0
+[1185000] READ  | Addr: 8'h1c | Data: 32'h1007 | Hit: 1
+[1355000] READ  | Addr: 8'h2c | Data: 32'h100b | Hit: 0
+
+--- TESTE 12: Verificando se Write-Back atualizou memoria ---
+[1465000] READ  | Addr: 8'hc | Data: 32'h11111111 | Hit: 0
+tb/tb_cache_controller.sv:188: $finish called at 1475000 (1ps)
+
+======================================
+ Simulação finalizada com sucesso.
+======================================
+
+Se o arquivo wave.vcd foi gerado, abra com:
+gtkwave sim/wave.vcd
