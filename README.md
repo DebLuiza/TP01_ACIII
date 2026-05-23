@@ -72,3 +72,96 @@ Ou, no PowerShell com as mesmas etapas:
 iverilog -g2012 -o sim/cache_tb.vvp src/cache_top.sv src/cache_controller.sv src/main_memory.sv tb/tb_cache_controller.sv
 vvp sim/cache_tb.vvp
 ```
+
+## Como rodar a simulação
+
+O projeto foi desenvolvido em SystemVerilog e pode ser compilado e simulado utilizando o Icarus Verilog.
+
+### Dependências
+
+Para executar o projeto, é necessário ter instalado:
+
+- Icarus Verilog
+- GTKWave, opcional, para visualizar as formas de onda
+
+No MSYS2 MINGW64, no Windows, as dependências podem ser instaladas com:
+
+```bash
+pacman -S mingw-w64-x86_64-iverilog
+pacman -S mingw-w64-x86_64-gtkwave
+```
+
+## Para verificar se o Icarus Verilog foi instalado corretamente, execute:
+
+```bash
+iverilog -V
+```
+
+## A estrutura de arquivos deve estar organizada da seguinte forma:
+
+```bash
+cache-controller/
+├── src/
+│   ├── cache_controller.sv
+│   ├── main_memory.sv
+│   └── cache_top.sv
+├── tb/
+│   └── tb_cache_controller.sv
+├── sim/
+│   └── run.sh
+├── docs/
+│   └── log_simulacao.txt
+└── README.md
+```
+
+## Executando com o script
+
+Na raiz do projeto, execute:
+
+```bash
+chmod +x sim/run.sh
+./sim/run.sh
+
+O script realiza a compilação dos arquivos SystemVerilog e, em seguida, executa a simulação.
+
+Internamente, o script executa um comando equivalente a:
+```bash
+iverilog -g2012 \
+    -o sim/cache_tb.vvp \
+    src/cache_controller.sv \
+    src/main_memory.sv \
+    src/cache_top.sv \
+    tb/tb_cache_controller.sv
+
+vvp sim/cache_tb.vvp
+```
+
+## Salvando o log da simulação
+
+Para salvar a saída da simulação em um arquivo de texto, execute:
+
+```bash
+mkdir -p docs
+./sim/run.sh > docs/log_simulacao.txt
+```
+
+O log será salvo em:
+
+```bash
+docs/log_simulacao.txt
+```
+
+## Visualizando a waveform
+
+Durante a simulação, o testbench gera o arquivo:
+
+
+```bash
+sim/wave.vcd
+```
+
+Esse arquivo pode ser aberto com o GTKWave:
+
+```bash
+gtkwave sim/wave.vcd
+```
