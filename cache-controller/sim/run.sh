@@ -10,6 +10,7 @@ iverilog -g2012 \
     -o sim/cache_tb.vvp \
     src/cache_controller.sv \
     src/main_memory.sv \
+    src/cache_top.sv \
     tb/tb_cache_controller.sv
 
 if [ $? -ne 0 ]; then

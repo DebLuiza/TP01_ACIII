@@ -1,55 +1,74 @@
-# Controlador de Cache - Especificações do Trabalho
+# Controlador de Cache - Especificacoes do Trabalho
 
-Este projeto implementará um **controlador de cache associativa por conjunto 2-way**.
+Este projeto implementa um controlador de cache set-associative 2-way com memoria principal simulada.
 
-## Parâmetros definidos
+## Parametros definidos
 
-- **Endereço:** 8 bits
-- **Endereçamento:** por byte
-- **Tamanho da palavra:** 32 bits = 4 bytes
-- **Número de conjuntos:** 4
-- **Associatividade:** 2-way
-- **Total de linhas:** 8 linhas
-- **Tamanho do bloco:** 1 palavra de 32 bits
-- **Política de escrita:** write-back
-- **Política de miss de escrita:** write-allocate
-- **Substituição:** LRU simples por conjunto
-  - `lru[set] = 0` → Way 0 é o menos recentemente usado
-  - `lru[set] = 1` → Way 1 é o menos recentemente usado
+- Endereco: 8 bits (byte-addressed)
+- Palavra: 32 bits (4 bytes)
+- Numero de conjuntos: 4
+- Associatividade: 2-way
+- Total de linhas: 8
+- Tamanho do bloco: 1 palavra
+- Politica de escrita: write-back
+- Politica de miss de escrita: write-allocate
+- Substituicao: LRU simples por conjunto
 
-## Divisão do endereço
+## Mapeamento de endereco
 
-Como o endereço possui 8 bits e a palavra possui 32 bits, ou seja, 4 bytes, são necessários 2 bits de offset para selecionar um byte dentro da palavra.
+- `addr[7:4]`: tag (4 bits)
+- `addr[3:2]`: index (2 bits)
+- `addr[1:0]`: offset de byte (2 bits)
 
-A divisão do endereço é:
+Como cada bloco guarda uma unica palavra de 32 bits, o offset nao seleciona outra palavra dentro do bloco.
+Nos acessos de memoria, o endereco do bloco e alinhado com `2'b00` nos bits menos significativos.
 
-- `addr[7:4]` → tag, com 4 bits
-- `addr[3:2]` → índice, com 2 bits
-- `addr[1:0]` → offset, com 2 bits
+## Estrutura dos modulos
 
-Portanto:
+- `src/cache_controller.sv`: FSM da cache, arrays `valid/dirty/tag/data`, politica LRU, write-back e write-allocate.
+- `src/main_memory.sv`: memoria de 64 palavras com latencia simulada.
+- `src/cache_top.sv`: integra `cache_controller` e `main_memory` em um unico modulo.
+- `tb/tb_cache_controller.sv`: testbench do sistema completo usando o `cache_top`.
 
-- **Tag:** 4 bits
-- **Índice:** 2 bits
-- **Offset:** 2 bits
+## FSM do controlador
 
-Como cada bloco da cache armazena uma palavra inteira de 32 bits, o offset não é usado para selecionar diferentes palavras dentro do bloco. Ele apenas representa o deslocamento em bytes dentro da palavra. Nos acessos à memória principal, o endereço é alinhado usando `2'b00` nos bits menos significativos.
+Estados principais do controlador:
 
-## Organização da cache
+- `IDLE`: aguarda requisicao da CPU.
+- `COMPARE_TAG`: detecta hit/miss e escolhe caminho.
+- `WRITE_BACK_REQ` / `WRITE_BACK_WAIT`: escreve bloco dirty na memoria antes da substituicao.
+- `ALLOCATE_REQ` / `ALLOCATE_WAIT`: requisita e aguarda bloco da memoria (write-allocate em miss de escrita).
+- `UPDATE_CACHE`: atualiza linha, bits e dado.
+- `RESPOND`: finaliza a transacao para CPU.
 
-- `4 conjuntos x 2 ways = 8 blocos` na cache
-- Cada bloco guarda `1 palavra de 32 bits`
-- Cada entrada da cache possui:
-  - bit `valid`
-  - bit `dirty`
-  - campo `tag`
-  - campo `data`
+A separacao em estados `*_REQ` e `*_WAIT` evita uso indevido de `mem_ready` residual entre operacoes.
 
-## Comportamento esperado
+## Politica LRU (2-way)
 
-- Em uma leitura com hit, o dado é retornado diretamente da cache.
-- Em uma leitura com miss, o dado é buscado na memória principal e carregado na cache.
-- Em uma escrita com hit, os dados são atualizados na cache e a linha é marcada como dirty.
-- Quando uma linha dirty for substituída, deve ocorrer escrita de volta para a memória principal.
-- Em miss de escrita, o bloco deve ser carregado para a cache antes da atualização, seguindo a política write-allocate.
-- Em cada conjunto, a escolha da vítima para substituição segue LRU simples entre as duas vias.
+- `lru[set] = 0`: way 0 e a vitima preferida.
+- `lru[set] = 1`: way 1 e a vitima preferida.
+- Em hit, a way acessada vira a mais recente.
+- Em miss, a way escolhida para alocacao/substituicao e travada para a requisicao atual.
+
+## Testes cobertos no testbench
+
+- Miss e hit de leitura.
+- Hit de escrita com write-back (linha dirty).
+- Miss de escrita com write-allocate.
+- Substituicao por LRU no mesmo conjunto.
+- Write-back de linha dirty seguido de confirmacao na memoria.
+
+## Como simular
+
+Dentro de `cache-controller/`:
+
+```bash
+bash sim/run.sh
+```
+
+Ou, no PowerShell com as mesmas etapas:
+
+```powershell
+iverilog -g2012 -o sim/cache_tb.vvp src/cache_top.sv src/cache_controller.sv src/main_memory.sv tb/tb_cache_controller.sv
+vvp sim/cache_tb.vvp
+```
