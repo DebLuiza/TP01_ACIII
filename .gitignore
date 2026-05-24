@@ -10,7 +10,18 @@
 *.synctex.gz
 *.fdb_latexmk
 *.fls
+*.nav
+*.snm
+*.vrb
+*.idx
+*.ind
+*.ilg
+*.thm
+*.pyg
 texput.log
+
+# PDF (Resultado da compilação)
+*.pdf
 
 # OS generated files
 .DS_Store
