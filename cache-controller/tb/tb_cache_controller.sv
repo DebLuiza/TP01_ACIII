@@ -93,11 +93,20 @@ module tb_cache_controller();
         reset = 0;
         #20;
 
-        $display("\n--- TESTE 1: Miss de Leitura (Alocando na Cache) ---");
+        $display("\n--- TESTE 0: Cache vazia apos reset (primeiro acesso deve ser miss) ---");
         do_read(8'h10);
 
+        $display("\n--- TESTE 0.1: Endereco extremo baixo (8'h00) ---");
+        do_read(8'h00);
+
+        $display("\n--- TESTE 0.2: Endereco extremo alto (8'hFF) ---");
+        do_read(8'hFF);
+
+        $display("\n--- TESTE 1: Miss de Leitura (Alocando na Cache) ---");
+        do_read(8'h14);
+
         $display("\n--- TESTE 2: Hit de Leitura ---");
-        do_read(8'h10);
+        do_read(8'h14);
 
         $display("\n--- TESTE 3: Hit de Escrita (Write-Back) ---");
         do_write(8'h10, 32'hDEADBEEF);

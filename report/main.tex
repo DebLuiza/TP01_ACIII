@@ -1,6 +1,6 @@
-\documentclass[12pt,a4paper]{article}
+﻿\documentclass[12pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
-\usepackage[portuguese]{babel}
+\usepackage{babel}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -31,7 +31,7 @@
     showstringspaces=false
 }
 
-\title{Relatório Técnico: Implementação de Pipeline RISC-V}
+\title{Relatorio Tecnico: Implementacao de Controlador de Cache}
 \author{Arthur Carvalho Rodrigues, Débora Luiza de Paula Silva, \\ Gustavo Henrique Rodrigues de Castro e Mariana Almeida Mendonça}
 \date{\today}
 
@@ -39,16 +39,42 @@
 
 \maketitle
 
-\section{Introdução}
- colocar a introdução e o resto aqui
+\section{Introducao}
+Este trabalho apresenta a implementacao e validacao de um controlador de cache em SystemVerilog, conforme os requisitos do Trabalho Pratico 1 de Arquitetura de Computadores III. O objetivo foi construir um controlador funcional entre CPU e memoria principal, com enfase em tratamento de hit/miss, politicas de leitura e escrita, substituicao de blocos e validacao por simulacao.
 
- \section{Implementação - contiuarrrrr}
+A arquitetura adotada foi uma cache 2-way set associative com 4 conjuntos, endereco de 8 bits, palavra de 32 bits e bloco de 1 palavra. As politicas selecionadas foram write-back, write-allocate e substituicao LRU simples por conjunto. A validacao foi feita por testbench automatizado, com cenarios de leitura, escrita, conflitos de indice, substituicao, write-back e casos limite.
+
+\section{Implementacao}
 Foi criado um módulo de topo, denominado \texttt{cache\_top}, responsável por integrar o controlador de cache e a memória principal. Esse módulo recebe os sinais da CPU, repassa as requisições ao controlador de cache e conecta internamente a interface entre o controlador e a memória principal.
 
 Essa separação torna o projeto mais modular, pois o \texttt{cache\_controller} contém apenas a lógica de controle da cache, o \texttt{main\_memory} modela a memória principal com latência, e o \texttt{cache\_top} realiza a integração entre os dois módulos. Dessa forma, o \textit{testbench} pode validar o sistema completo a partir da interface da CPU.
 
 
 
+
+\subsection{Decisoes de projeto, simplificacoes e hipoteses}
+As principais decisoes tecnicas foram:
+\begin{itemize}
+    \item cache 2-way set associative com 4 conjuntos, por equilibrio entre simplicidade e cobertura dos cenarios exigidos;
+    \item politica de escrita \textit{write-back} com bit \textit{dirty}, reduzindo trafego para memoria principal;
+    \item politica de miss de escrita \textit{write-allocate}, mantendo coerencia entre caminho de leitura e escrita;
+    \item substituicao LRU simples por conjunto, usando 1 bit por conjunto (suficiente para 2 vias);
+    \item separacao modular em \texttt{cache\_controller}, \texttt{main\_memory} e \texttt{cache\_top}.
+\end{itemize}
+
+Simplificacoes adotadas:
+\begin{itemize}
+    \item bloco de cache com 1 palavra (32 bits), sem selecao de multiplas palavras por bloco;
+    \item memoria principal modelada com latencia fixa de ciclos;
+    \item interface CPU simplificada para sinais de leitura/escrita e handshake por \texttt{cpu\_ready}.
+\end{itemize}
+
+Hipoteses do modelo:
+\begin{itemize}
+    \item enderecamento por byte, com divisao do endereco em \texttt{tag[7:4]}, \texttt{index[3:2]} e \texttt{offset[1:0]};
+    \item operacoes serializadas no testbench (uma requisicao por vez);
+    \item coerencia externa entre CPU e memoria principal tratada apenas pelo controlador modelado.
+\end{itemize}
 \section{Depuração de erro temporal entre cache e memória principal}
 
 Durante a etapa de validação funcional do controlador de cache, foram inicialmente executados testes básicos de leitura e escrita. Esses testes verificaram corretamente os seguintes cenários:
@@ -186,6 +212,12 @@ A Tabela~\ref{tab:testes-cache} resume os principais testes realizados e os resp
 \hline
 \textbf{Teste} & \textbf{Cenário validado} & \textbf{Resultado} \\
 \hline
+0 & Cache vazia apos reset (primeiro acesso deve resultar em miss) & Passou \\
+\hline
+0.1 & Acesso ao endereco extremo baixo (\texttt{8'h00}) & Passou \\
+\hline
+0.2 & Acesso ao endereco extremo alto (\texttt{8'hFF}) & Passou \\
+\hline
 1 & Leitura com miss e alocação do bloco na cache & Passou \\
 \hline
 2 & Leitura com hit após o bloco já estar na cache & Passou \\
@@ -301,6 +333,25 @@ O último acesso ao endereço \texttt{8'h0C} resultou em miss, pois o bloco havi
 
 Esse teste valida o funcionamento conjunto da política \textit{write-back}, do bit \textit{dirty} e da substituição de blocos.
 
+\subsection{Casos limite: cache vazia e enderecos extremos}
+Foram adicionados testes explicitos para os casos limite exigidos no enunciado:
+\begin{itemize}
+    \item cache vazia apos reset: primeiro acesso ao endereco \texttt{8\'h10} deve resultar em miss;
+    \item acesso ao endereco extremo baixo \texttt{8\'h00};
+    \item acesso ao endereco extremo alto \texttt{8\'hFF}.
+\end{itemize}
+
+Trecho representativo do log de simulacao:
+\begin{verbatim}
+--- TESTE 0: Cache vazia apos reset (primeiro acesso deve ser miss) ---
+READ  | Addr: 8\'h10 | Data: 32\'h1004 | Hit: 0
+--- TESTE 0.1: Endereco extremo baixo (8\'h00) ---
+READ  | Addr: 8\'h0  | Data: 32\'h1000 | Hit: 0
+--- TESTE 0.2: Endereco extremo alto (8\'hFF) ---
+READ  | Addr: 8\'hff | Data: 32\'h103f | Hit: 0
+\end{verbatim}
+
+Esses resultados confirmam o comportamento esperado para inicializacao da cache e para limites do espaco de enderecamento.
 \subsection{Conclusão da validação}
 
 Os testes realizados cobriram os principais comportamentos esperados do controlador de cache: leitura com hit e miss, escrita com hit e miss, alocação em miss de escrita, substituição por LRU, conflitos de índice e escrita de volta de blocos modificados. Todos os testes apresentaram os resultados esperados, indicando que o controlador implementado atende à especificação definida para o projeto.
@@ -354,6 +405,10 @@ Em seguida, são realizados acessos aos endereços \texttt{8'h1C} e \texttt{8'h2
 
 A validação funcional é complementada pelo log da simulação, no qual uma leitura posterior do endereço \texttt{8'h0C} retorna o valor \texttt{32'h11111111}. Isso confirma que o dado modificado foi corretamente preservado na memória principal após a substituição do bloco.
 
+\section{Conclusao}
+O controlador de cache implementado atende aos requisitos funcionais do trabalho para leitura, escrita, tratamento de miss, substituicao LRU, write-back e write-allocate. A validacao por simulacao demonstrou comportamento coerente tanto em cenarios basicos quanto em cenarios de conflito, substituicao e escrita de volta para memoria principal.
+
+Como resultado, o projeto entregue contem codigo-fonte em SystemVerilog, testbench automatizado, script de simulacao, log de execucao e relatorio tecnico com evidencias. A documentacao de uso de IA foi incluida com os prompts utilizados e a descricao objetiva de como a ferramenta apoiou especificacao, implementacao e depuracao.
 \section{Documentação do Uso de Inteligência Artificial (Seção 8)}
 \label{sec:ia_documentation}
 
@@ -436,3 +491,10 @@ seria algo dessa forma? fiz todos os testes necessários no arquivo em anexo,
 valide por favor [Arquivo tb_cache_controller.sv anexado com os testes de limite]
 \end{verbatim}
 \end{document}
+
+
+
+
+
+
+
