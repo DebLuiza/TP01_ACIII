@@ -235,7 +235,7 @@ EDGE (7.5) & T31--T35 & 5/5 PASS \\
 \caption{Resumo da cobertura funcional do testbench atualizado.}
 \label{tab:testes-cache}
 \end{table}
-\\subsection{Validação de leitura com miss e hit}
+\subsection{Validação de leitura com miss e hit}
 
 Inicialmente, foi realizada uma leitura no endereço \texttt{8'h10}. Como a cache estava vazia após o reset, o acesso resultou em miss. O controlador buscou o dado correspondente na memória principal, carregou o bloco na cache e retornou o valor \texttt{32'h1004}.
 
@@ -479,6 +479,7 @@ seria algo dessa forma? fiz todos os testes necessários no arquivo em anexo,
 valide por favor [Arquivo tb_cache_controller.sv anexado com os testes de limite]
 \end{verbatim}
 \end{document}
+
 
 
 
