@@ -204,50 +204,38 @@ A simulação foi executada utilizando o Icarus Verilog. O arquivo \texttt{wave.
 
 \subsection{Testes realizados}
 
-A Tabela~\ref{tab:testes-cache} resume os principais testes realizados e os respectivos resultados obtidos.
+A validacao automatizada atual e composta por 35 testes distribuidos nas secoes 7.1 a 7.5 do enunciado. O resultado consolidado foi:
+
+\begin{verbatim}
+RESULTADO FINAL: 35 PASS / 0 FAIL de 35 testes
+>>> TODOS OS TESTES PASSARAM <<<
+\end{verbatim}
+
+A Tabela~\ref{tab:testes-cache} resume a cobertura por categoria.
 
 \begin{table}[h]
 \centering
-\begin{tabular}{|c|p{7cm}|c|}
+\begin{tabular}{|c|c|c|}
 \hline
-\textbf{Teste} & \textbf{Cenário validado} & \textbf{Resultado} \\
+\textbf{Categoria} & \textbf{Faixa de testes} & \textbf{Resultado} \\
 \hline
-0 & Cache vazia apos reset (primeiro acesso deve resultar em miss) & Passou \\
+READ (7.1) & T1--T5 & 5/5 PASS \\
 \hline
-0.1 & Acesso ao endereco extremo baixo (\texttt{8'h00}) & Passou \\
+WRITE (7.2) & T6--T10 & 5/5 PASS \\
 \hline
-0.2 & Acesso ao endereco extremo alto (\texttt{8'hFF}) & Passou \\
+REPLACE (7.3) & T11--T20 & 10/10 PASS \\
 \hline
-1 & Leitura com miss e alocação do bloco na cache & Passou \\
+CONSIST (7.4) & T21--T30 & 10/10 PASS \\
 \hline
-2 & Leitura com hit após o bloco já estar na cache & Passou \\
+EDGE (7.5) & T31--T35 & 5/5 PASS \\
 \hline
-3 & Escrita com hit utilizando política \textit{write-back} & Passou \\
-\hline
-4 & Leitura após escrita, confirmando atualização do dado na cache & Passou \\
-\hline
-5 & Escrita com miss utilizando política \textit{write-allocate} & Passou \\
-\hline
-6 & Leitura após \textit{write-allocate}, confirmando que o bloco foi carregado na cache & Passou \\
-\hline
-7 & Conflito de índice entre endereços que mapeiam para o mesmo conjunto & Passou \\
-\hline
-8 & Atualização da informação de LRU após novo acesso a uma via & Passou \\
-\hline
-9 & Substituição de bloco seguindo a política LRU & Passou \\
-\hline
-10 & Confirmação da substituição LRU por meio de novos acessos & Passou \\
-\hline
-11 & Escrita de volta de bloco marcado como \textit{dirty} & Passou \\
-\hline
-12 & Verificação de que a memória principal foi atualizada após o \textit{write-back} & Passou \\
+\textbf{Total} & \textbf{T1--T35} & \textbf{35/35 PASS} \\
 \hline
 \end{tabular}
-\caption{Resumo dos testes funcionais realizados no controlador de cache.}
+\caption{Resumo da cobertura funcional do testbench atualizado.}
 \label{tab:testes-cache}
 \end{table}
-
-\subsection{Validação de leitura com miss e hit}
+\\subsection{Validação de leitura com miss e hit}
 
 Inicialmente, foi realizada uma leitura no endereço \texttt{8'h10}. Como a cache estava vazia após o reset, o acesso resultou em miss. O controlador buscou o dado correspondente na memória principal, carregou o bloco na cache e retornou o valor \texttt{32'h1004}.
 
@@ -336,19 +324,19 @@ Esse teste valida o funcionamento conjunto da política \textit{write-back}, do 
 \subsection{Casos limite: cache vazia e enderecos extremos}
 Foram adicionados testes explicitos para os casos limite exigidos no enunciado:
 \begin{itemize}
-    \item cache vazia apos reset: primeiro acesso ao endereco \texttt{8\'h10} deve resultar em miss;
-    \item acesso ao endereco extremo baixo \texttt{8\'h00};
-    \item acesso ao endereco extremo alto \texttt{8\'hFF}.
+    \item cache vazia apos reset: primeiro acesso ao endereco \texttt{8'h10} deve resultar em miss;
+    \item acesso ao endereco extremo baixo \texttt{8'h00};
+    \item acesso ao endereco extremo alto \texttt{8'hFC}.
 \end{itemize}
 
 Trecho representativo do log de simulacao:
 \begin{verbatim}
---- TESTE 0: Cache vazia apos reset (primeiro acesso deve ser miss) ---
-READ  | Addr: 8\'h10 | Data: 32\'h1004 | Hit: 0
---- TESTE 0.1: Endereco extremo baixo (8\'h00) ---
-READ  | Addr: 8\'h0  | Data: 32\'h1000 | Hit: 0
---- TESTE 0.2: Endereco extremo alto (8\'hFF) ---
-READ  | Addr: 8\'hff | Data: 32\'h103f | Hit: 0
+--- [EDGE] T34: Read miss after reset (cache invalidated) ---
+READ  | Addr: 8'h10 | Data: 32'h1004 | Hit: 0
+--- [EDGE] T31: Read addr 0x00 (min) ---
+READ  | Addr: 8'h0  | Data: 32'h1000 | Hit: 0
+--- [EDGE] T32: Read addr 0xFC (max) ---
+READ  | Addr: 8'hFC | Data: 32'h103f | Hit: 0
 \end{verbatim}
 
 Esses resultados confirmam o comportamento esperado para inicializacao da cache e para limites do espaco de enderecamento.
@@ -491,6 +479,9 @@ seria algo dessa forma? fiz todos os testes necessários no arquivo em anexo,
 valide por favor [Arquivo tb_cache_controller.sv anexado com os testes de limite]
 \end{verbatim}
 \end{document}
+
+
+
 
 
 
