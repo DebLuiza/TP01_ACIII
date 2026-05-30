@@ -44,6 +44,8 @@ Este trabalho apresenta a implementacao e validacao de um controlador de cache e
 
 A arquitetura adotada foi uma cache 2-way set associative com 4 conjuntos, endereco de 8 bits, palavra de 32 bits e bloco de 1 palavra. As politicas selecionadas foram write-back, write-allocate e substituicao LRU simples por conjunto. A validacao foi feita por testbench automatizado, com cenarios de leitura, escrita, conflitos de indice, substituicao, write-back e casos limite.
 
+Repositorio do projeto no GitHub: \href{https://github.com/DebLuiza/TP01_ACIII/tree/main}{https://github.com/DebLuiza/TP01_ACIII/tree/main}.
+
 \section{Implementacao}
 Foi criado um módulo de topo, denominado \texttt{cache\_top}, responsável por integrar o controlador de cache e a memória principal. Esse módulo recebe os sinais da CPU, repassa as requisições ao controlador de cache e conecta internamente a interface entre o controlador e a memória principal.
 
